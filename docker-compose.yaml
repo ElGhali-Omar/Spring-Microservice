@@ -1,0 +1,165 @@
+version: "3.7"
+services:
+  Eureka:
+    container_name: serviceregistry
+    build: .\EurekaServer
+    ports:
+      - "8761:8761"
+    hostname: serviceregistry
+    image: "eureka"
+  
+  gateway_v2:
+    container_name: gateway_v2
+    build: .\Gateway
+    ports:
+      - "8809:8809"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://serviceregistry:8761/eureka/
+    hostname: gateway_v2
+    image: "gateway_v2"
+    depends_on:
+      - Eureka
+      - reclamationoffre
+      - deliveryorder
+      - productshop
+      - blogforum
+      - eventv1
+      - node_api
+    
+  mysql_reclamation:
+    image: "mysql:5.6"
+    container_name: mysql_reclamation
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+    ports:
+      - "3307:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  reclamationoffre:
+    container_name: reclamationoffre
+    build: .\Spring - Reclamation
+    ports:
+      - "8801:8801"
+    hostname: reclamationoffre
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://serviceregistry:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql_reclamation:3306/reclamation?useUnicode=true&useJDBCCompliantTimezoneShift=true&createDatabaseIfNotExist=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=
+    image: "reclamationoffre"
+    depends_on:
+      - mysql_reclamation
+      - Eureka
+
+  mysql_delivery:
+    image: "mysql:5.6"
+    container_name: mysql_delivery
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+    ports:
+      - "3308:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  deliveryorder:
+    container_name: deliveryorder
+    build: .\Spring - Delivery
+    ports:
+      - "8804:8804"
+    hostname: deliveryorder
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://serviceregistry:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql_delivery:3306/delivery?useUnicode=true&useJDBCCompliantTimezoneShift=true&createDatabaseIfNotExist=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=
+    image: "deliveryorder"
+    depends_on:
+      - mysql_delivery
+      - Eureka
+
+  mysql_product:
+    image: "mysql:5.6"
+    container_name: mysql_product
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+    ports:
+      - "3309:3306"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  productshop:
+    container_name: productshop
+    build: .\Spring - Product
+    ports:
+      - "8805:8805"
+    hostname: productshop
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://serviceregistry:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql_product:3306/product?useUnicode=true&useJDBCCompliantTimezoneShift=true&createDatabaseIfNotExist=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=
+    image: "productshop"
+    depends_on:
+      - mysql_product
+      - Eureka
+
+  blogforum:
+    container_name: blogforum
+    build: .\Spirng - Blog
+    ports:
+      - "8802:8802"
+    hostname: blogforum
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://serviceregistry:8761/eureka/
+    image: "blogforum"
+    depends_on:
+      - Eureka
+  
+  eventv1:
+    container_name: eventv1
+    build: .\Spring - Event
+    ports:
+      - "8803:8803"
+    hostname: eventv1
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://serviceregistry:8761/eureka/
+    image: "eventv1"
+    depends_on:
+      - Eureka
+
+  mongo_db:
+    container_name: db_container
+    image: mongo:latest
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_db:/data/db
+
+  node_api:
+    container_name: node_container
+    build: .\backendminiprojet
+    ports:
+      - "3000:3000"
+    volumes:
+      - .\backendminiprojet:/usr/src/app
+    environment:
+      PORT: 3000
+      MONGO: mongodb://mongo_db:27017
+      DB_NAME: BNS
+    depends_on:
+      - mongo_db
+      - Eureka
+
+volumes:
+  mongo_db: {}
